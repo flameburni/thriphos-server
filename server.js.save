@@ -1,0 +1,40 @@
+require("dotenv").config()
+const express = require("express");
+const cors = require("cors");
+const fetch = require("node-fetch");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.post("/insights", async function(req, res) {
+  const entries = req.body.entries;
+  const rangeType = req.body.rangeType;
+
+  const entriesText = entries.map(function(entry) {
+    return `${entry.date}: Topic: ${entry.topic}. Content: ${entry.content}`;
+  }).join("\n");
+
+  const prompt = `You are a supportive journaling assistant. Based on the following journal entries from the past ${rangeType}, identify the overall mood, any recurring themes, and offer one brief, encouraging insight. Entries: ${entriesText}`;
+ 
+  const geminiResponse = await fetch(
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + process.env.GEMINI_API_KEY, 
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    })
+  }
+);
+
+  const geminiData = await geminiResponse.json();
+   
+  const insightText = geminiData.candidates[0].content.parts[0].text;
+  res.json({ insight: insightText });
+});
+
+app.listen(3000, function() {
+  console.log("Server running on port 3000");
+});
